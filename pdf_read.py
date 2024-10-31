@@ -5,7 +5,6 @@ import zipfile
 import tempfile
 import os
 import ocrmypdf
-import logging
 
 def process_zip_to_searchable_pdf(zip_file, language='eng', optimize=2):
     """Convert images from zip file to a searchable PDF."""
@@ -44,22 +43,42 @@ def process_zip_to_searchable_pdf(zip_file, language='eng', optimize=2):
                 st.error("No valid images found in the ZIP file")
                 return None
             
-            # Prepare output PDF path
+            # Prepare output PDF paths
             output_pdf_path = os.path.join(output_dir, "searchable_output.pdf")
             
             # Use OCRmyPDF to create searchable PDF
             try:
-                # Combine images to PDF first
-                first_image = image_paths[0]
-                ocrmypdf.ocr(
-                    first_image,  # First image
-                    output_pdf_path, 
-                    input_images=image_paths,  # All images
-                    skip_text=False,  # Ensure OCR is performed even if text is detected
-                    optimize=optimize,  # Optimization level
-                    language=language,  # Language for OCR
-                    progress_bar=True
-                )
+                # If multiple images, create a multi-page PDF
+                if len(image_paths) > 1:
+                    # Convert first image to PDF
+                    ocrmypdf.ocr(
+                        image_paths[0],
+                        output_pdf_path, 
+                        language=language,
+                        optimize=optimize,
+                        skip_text=False
+                    )
+                    
+                    # Append subsequent images
+                    for img_path in image_paths[1:]:
+                        ocrmypdf.ocr(
+                            img_path,
+                            output_pdf_path, 
+                            language=language,
+                            optimize=optimize,
+                            skip_text=False,
+                            pdfa_image_compression=True,  # Helps with multi-page PDFs
+                            existing_pdf=output_pdf_path
+                        )
+                else:
+                    # Single image processing
+                    ocrmypdf.ocr(
+                        image_paths[0],
+                        output_pdf_path, 
+                        language=language,
+                        optimize=optimize,
+                        skip_text=False
+                    )
                 
                 # Read PDF into memory
                 with open(output_pdf_path, 'rb') as pdf_file:
