@@ -5,23 +5,35 @@ import zipfile
 import tempfile
 import os
 import ocrmypdf
-from fpdf import FPDF
+import shutil
+
+def check_dependencies():
+    """Check and report on required OCR dependencies."""
+    dependencies = {
+        'tesseract': shutil.which('tesseract'),
+        'gs': shutil.which('gs'),  # Ghostscript
+        'unpaper': shutil.which('unpaper'),
+        'pngquant': shutil.which('pngquant')
+    }
+    
+    missing_deps = [dep for dep, path in dependencies.items() if path is None]
+    return dependencies, missing_deps
 
 def process_zip_to_searchable_pdf(zip_file, language='eng', optimize=2):
-    """Convert images from a zip file to a searchable PDF."""
+    """Convert images from zip file to a searchable PDF."""
     try:
         # Create temporary directories
         with tempfile.TemporaryDirectory() as temp_dir, \
              tempfile.TemporaryDirectory() as output_dir:
-            
             # Extract zip contents
             with zipfile.ZipFile(zip_file, 'r') as zip_ref:
                 zip_ref.extractall(temp_dir)
             
             # Get all image files
             valid_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.tiff', '.bmp'}
-            image_paths = []
             
+            # Collect image paths
+            image_paths = []
             for root, _, files in os.walk(temp_dir):
                 for file in sorted(files):  # Sort files for consistent order
                     if any(file.lower().endswith(ext) for ext in valid_extensions):
@@ -33,7 +45,7 @@ def process_zip_to_searchable_pdf(zip_file, language='eng', optimize=2):
                             if img.mode != 'RGB':
                                 img = img.convert('RGB')
                             
-                            # Save validated image in consistent order
+                            # Save validated image
                             output_image_path = os.path.join(temp_dir, f"image_{len(image_paths):03d}.jpg")
                             img.save(output_image_path)
                             image_paths.append(output_image_path)
@@ -41,30 +53,50 @@ def process_zip_to_searchable_pdf(zip_file, language='eng', optimize=2):
                             st.warning(f"Skipped {file}: {str(e)}")
             
             if not image_paths:
-                st.error("No valid images found in the ZIP file.")
+                st.error("No valid images found in the ZIP file")
                 return None
             
-            # Create a temporary PDF with images
-            temp_pdf_path = os.path.join(temp_dir, "temp_images.pdf")
-            pdf = FPDF()
-            for img_path in image_paths:
-                pdf.add_page()
-                pdf.image(img_path, x=0, y=0, w=210, h=297)  # A4 size dimensions
-            pdf.output(temp_pdf_path)
-
             # Prepare output PDF paths
             output_pdf_path = os.path.join(output_dir, "searchable_output.pdf")
             
             # Use OCRmyPDF to create searchable PDF
             try:
-                ocrmypdf.ocr(
-                    temp_pdf_path,
-                    output_pdf_path, 
-                    language=language,
-                    optimize=optimize,
-                    output_type="pdfa",
-                    skip_text=False
-                )
+                # If multiple images, create a multi-page PDF
+                ocr_params = {
+                    'language': language,
+                    'optimize': optimize,
+                    'skip_text': False,
+                    'progress_bar': True
+                }
+                
+                # Disable image optimization if pngquant is not available
+                if shutil.which('pngquant') is None:
+                    st.warning("pngquant not found. Disabling image compression.")
+                    ocr_params['optimize'] = 0
+                
+                if len(image_paths) > 1:
+                    # Convert first image to PDF
+                    ocrmypdf.ocr(
+                        image_paths[0],
+                        output_pdf_path, 
+                        **ocr_params
+                    )
+                    
+                    # Append subsequent images
+                    for img_path in image_paths[1:]:
+                        ocrmypdf.ocr(
+                            img_path,
+                            output_pdf_path, 
+                            existing_pdf=output_pdf_path,
+                            **ocr_params
+                        )
+                else:
+                    # Single image processing
+                    ocrmypdf.ocr(
+                        image_paths[0],
+                        output_pdf_path, 
+                        **ocr_params
+                    )
                 
                 # Read PDF into memory
                 with open(output_pdf_path, 'rb') as pdf_file:
@@ -83,6 +115,35 @@ def process_zip_to_searchable_pdf(zip_file, language='eng', optimize=2):
 def main():
     st.title("ZIP to Searchable PDF Converter")
     st.write("Upload a ZIP file containing images to convert them into a single searchable PDF.")
+    
+    # Check OCR dependencies
+    try:
+        import ocrmypdf
+    except ImportError:
+        st.error("""
+        OCRmyPDF is not installed. Please install it using:
+        ```
+        pip install ocrmypdf
+        ```
+        Also ensure Tesseract OCR is installed on your system.
+        """)
+        return
+    
+    # Check and display dependency status
+    dependencies, missing_deps = check_dependencies()
+    
+    if missing_deps:
+        st.warning("Missing dependencies:")
+        for dep in missing_deps:
+            st.warning(f"- {dep}")
+        
+        st.info("""
+        Install missing dependencies:
+        - Tesseract OCR: `apt-get install tesseract-ocr`
+        - Ghostscript: `apt-get install ghostscript`
+        - Unpaper: `apt-get install unpaper`
+        - pngquant: `apt-get install pngquant`
+        """)
     
     # File uploader for ZIP
     uploaded_file = st.file_uploader(
