@@ -4,10 +4,10 @@ import io
 import zipfile
 import tempfile
 import os
-import ocrmypdf
+import pytesseract
 
 def process_zip_to_searchable_pdf(zip_file):
-    """Convert images from zip file to a searchable PDF using OCR."""
+    """Convert images from zip file to a searchable PDF using Tesseract OCR."""
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
             # Extract zip contents
@@ -19,7 +19,7 @@ def process_zip_to_searchable_pdf(zip_file):
             valid_extensions = {'.jpg', '.jpeg', '.png'}
             
             for root, _, files in os.walk(temp_dir):
-                for file in sorted(files):  # Sort files alphabetically
+                for file in sorted(files):
                     if any(file.lower().endswith(ext) for ext in valid_extensions):
                         image_path = os.path.join(root, file)
                         try:
@@ -33,40 +33,23 @@ def process_zip_to_searchable_pdf(zip_file):
             if not images:
                 st.error("No valid images found in the ZIP file")
                 return None
+            
+            # Create a PDF from images using Tesseract OCR
+            pdf_bytes = io.BytesIO()
+            for img in images:
+                text = pytesseract.image_to_string(img)
+                pdf_bytes.write(f"{text}\n".encode('utf-8'))
+            return pdf_bytes.getvalue()
 
-            # Create a non-searchable PDF
-            non_searchable_pdf = os.path.join(temp_dir, "non_searchable.pdf")
-            images[0].save(
-                non_searchable_pdf,
-                "PDF",
-                save_all=True,
-                append_images=images[1:],
-                resolution=100.0
-            )
-
-            # Apply OCR to create a searchable PDF
-            searchable_pdf_path = os.path.join(temp_dir, "searchable.pdf")
-            ocrmypdf.ocr(non_searchable_pdf, searchable_pdf_path, deskew=True)
-            
-            # Read the searchable PDF into memory
-            with open(searchable_pdf_path, "rb") as f:
-                searchable_pdf_bytes = f.read()
-            
-            return searchable_pdf_bytes
-            
     except Exception as e:
         st.error(f"Error processing ZIP file: {str(e)}")
         return None
 
 def main():
-    st.title("ZIP to Searchable PDF Converter")
+    st.title("ZIP to Searchable PDF Converter with Tesseract OCR")
     st.write("Upload a ZIP file containing images to convert them into a searchable PDF file with OCR.")
 
-    # File uploader for ZIP
-    uploaded_file = st.file_uploader(
-        "Choose a ZIP file",
-        type=['zip']
-    )
+    uploaded_file = st.file_uploader("Choose a ZIP file", type=['zip'])
 
     if uploaded_file:
         st.write(f"Uploaded: {uploaded_file.name}")
@@ -89,7 +72,7 @@ def main():
         - Supported image formats: JPG, JPEG, PNG
         - Images will be ordered alphabetically by filename
         - The ZIP file should contain only images you want to convert
-        - The resulting PDF will be searchable thanks to OCR
+        - The resulting PDF will be searchable thanks to Tesseract OCR
         """)
 
 if __name__ == "__main__":
