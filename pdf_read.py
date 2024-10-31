@@ -1,5 +1,5 @@
 import streamlit as st
-from PIL import Image, ImageFilter
+from PIL import Image
 import io
 import zipfile
 import tempfile
@@ -67,12 +67,12 @@ def process_zip_to_searchable_pdf(zip_file):
                     # Use pytesseract to extract text for OCR
                     text = pytesseract.image_to_string(processed_img, config='--psm 6')  # Set Page Segmentation Mode
 
-                    # Insert the text into the PDF as a hidden text layer
-                    pdf.set_xy(0, 0)  # Position for text
+                    # Create a new page for the OCR text
+                    pdf.add_page()
                     pdf.set_font("Arial", size=12)
 
-                    # Handle potential unsupported characters
-                    pdf.multi_cell(0, 10, text.encode('latin-1', 'replace').decode('latin-1'))
+                    # Insert the extracted text into the PDF
+                    pdf.multi_cell(0, 10, text)
 
             # Save the PDF to a BytesIO stream
             pdf_output = io.BytesIO()
