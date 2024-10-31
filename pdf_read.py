@@ -7,7 +7,7 @@ import os
 import ocrmypdf
 import logging
 
-def process_zip_to_searchable_pdf(zip_file):
+def process_zip_to_searchable_pdf(zip_file, language='eng', optimize=2):
     """Convert images from zip file to a searchable PDF."""
     try:
         # Create temporary directories
@@ -18,7 +18,6 @@ def process_zip_to_searchable_pdf(zip_file):
                 zip_ref.extractall(temp_dir)
             
             # Get all image files
-            images = []
             valid_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.tiff', '.bmp'}
             
             # Collect image paths
@@ -57,8 +56,8 @@ def process_zip_to_searchable_pdf(zip_file):
                     output_pdf_path, 
                     input_images=image_paths,  # All images
                     skip_text=False,  # Ensure OCR is performed even if text is detected
-                    optimize=2,  # Moderate optimization
-                    language='eng',  # English language for OCR
+                    optimize=optimize,  # Optimization level
+                    language=language,  # Language for OCR
                     progress_bar=True
                 )
                 
@@ -68,7 +67,7 @@ def process_zip_to_searchable_pdf(zip_file):
                 
                 return pdf_bytes
             
-            except ocrmypdf.exceptions.OcrFailedError as ocr_err:
+            except Exception as ocr_err:
                 st.error(f"OCR Processing failed: {str(ocr_err)}")
                 return None
             
@@ -118,20 +117,21 @@ def main():
         
         if st.button("Convert to Searchable PDF"):
             with st.spinner("Converting images to searchable PDF..."):
-                # Temporarily modify global OCR language
-                try:
-                    pdf_bytes = process_zip_to_searchable_pdf(uploaded_file)
-                    
-                    if pdf_bytes:
-                        st.success("Conversion completed!")
-                        st.download_button(
-                            label="Download Searchable PDF",
-                            data=pdf_bytes,
-                            file_name="searchable_images.pdf",
-                            mime="application/pdf"
-                        )
-                except Exception as e:
-                    st.error(f"Conversion failed: {str(e)}")
+                # Call with selected language and optimization
+                pdf_bytes = process_zip_to_searchable_pdf(
+                    uploaded_file, 
+                    language=language, 
+                    optimize=optimize
+                )
+                
+                if pdf_bytes:
+                    st.success("Conversion completed!")
+                    st.download_button(
+                        label="Download Searchable PDF",
+                        data=pdf_bytes,
+                        file_name="searchable_images.pdf",
+                        mime="application/pdf"
+                    )
         
         st.info("""
         📝 Notes:
