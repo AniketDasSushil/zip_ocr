@@ -20,6 +20,10 @@ def preprocess_image(image):
     
     return image
 
+def clean_text(text):
+    """Remove unsupported characters from the extracted text."""
+    return ''.join(c for c in text if ord(c) < 128)  # Keep only ASCII characters
+
 def process_zip_to_searchable_pdf(zip_file):
     """Convert images from zip file to a searchable PDF using OCR."""
     try:
@@ -51,6 +55,7 @@ def process_zip_to_searchable_pdf(zip_file):
             # Create a PDF using fpdf2
             pdf = FPDF()
             pdf.set_auto_page_break(auto=True, margin=15)
+            pdf.set_font("Arial", size=12)  # Default font
 
             for img in images:
                 # Preprocess the image for better OCR
@@ -66,13 +71,15 @@ def process_zip_to_searchable_pdf(zip_file):
 
                     # Use pytesseract to extract text for OCR
                     text = pytesseract.image_to_string(processed_img, config='--psm 6')  # Set Page Segmentation Mode
+                    
+                    # Clean the extracted text
+                    clean_text_output = clean_text(text)
 
-                    # Create a new page for the OCR text
+                    # Create a new page for the cleaned OCR text
                     pdf.add_page()
-                    pdf.set_font("Arial", size=12)
-
-                    # Insert the extracted text into the PDF
-                    pdf.multi_cell(0, 10, text)
+                    
+                    # Insert the cleaned text into the PDF
+                    pdf.multi_cell(0, 10, clean_text_output)
 
             # Save the PDF to a BytesIO stream
             pdf_output = io.BytesIO()
