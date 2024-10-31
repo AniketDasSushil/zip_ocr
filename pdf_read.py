@@ -5,7 +5,6 @@ import zipfile
 import tempfile
 import os
 import pytesseract
-from pdf2image import convert_from_path
 from fpdf import FPDF
 
 def process_zip_to_searchable_pdf(zip_file):
@@ -36,17 +35,17 @@ def process_zip_to_searchable_pdf(zip_file):
                 st.error("No valid images found in the ZIP file")
                 return None
 
-            # Create a PDF using FPDF
+            # Create a PDF using fpdf2
             pdf = FPDF()
             pdf.set_auto_page_break(auto=True, margin=15)
-            
+            pdf.add_page()
+
             for img in images:
                 # Convert the PIL image to a temporary file
                 with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as temp_file:
                     img.save(temp_file.name, "JPEG")
                     
-                    # Add a page to the PDF
-                    pdf.add_page()
+                    # Add image to the PDF
                     pdf.image(temp_file.name, x=0, y=0, w=pdf.w, h=pdf.h)
 
                     # Use pytesseract to extract text for OCR
@@ -55,7 +54,9 @@ def process_zip_to_searchable_pdf(zip_file):
                     # Insert the text into the PDF as a hidden text layer
                     pdf.set_xy(0, 0)  # Position for text
                     pdf.set_font("Arial", size=12)
-                    pdf.multi_cell(0, 10, text)
+
+                    # This allows using Unicode characters
+                    pdf.multi_cell(0, 10, text.encode('latin-1', 'replace').decode('latin-1'))
 
             # Save the PDF to a BytesIO stream
             pdf_output = io.BytesIO()
