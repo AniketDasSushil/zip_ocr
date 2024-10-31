@@ -2,3 +2,4 @@ streamlit
 Pillow
 ocrmypdf
 fpdf2
+ghostscript
