@@ -1,2 +1,5 @@
 ocrmypdf
 FPDF
+pngquant
+unpaper
+gs
