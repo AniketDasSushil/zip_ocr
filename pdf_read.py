@@ -1,10 +1,10 @@
 import streamlit as st
+import ocrmypdf
 from PIL import Image
 import io
 import zipfile
 import tempfile
 import os
-import ocrmypdf
 import shutil
 
 def check_dependencies():
@@ -113,9 +113,31 @@ def process_zip_to_searchable_pdf(zip_file, language='eng', optimize=2):
         return None
 
 def main():
-    st.title("ZIP to Searchable PDF Converter")
-    st.write("Upload a ZIP file containing images to convert them into a single searchable PDF.")
+    # Set page configuration
+    st.set_page_config(
+        page_title="ZIP to Searchable PDF Converter", 
+        page_icon="📄", 
+        layout="wide"
+    )
     
+    # Custom CSS for styling
+    st.markdown("""
+    <style>
+    .big-font {
+        font-size:20px !important;
+    }
+    .highlight {
+        background-color: #f0f2f6;
+        padding: 10px;
+        border-radius: 5px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Title and description
+    st.title("🖨️ ZIP to Searchable PDF Converter")
+    st.markdown("### Convert images from a ZIP file into a single, searchable PDF")
+
     # Check OCR dependencies
     try:
         import ocrmypdf
@@ -133,66 +155,77 @@ def main():
     dependencies, missing_deps = check_dependencies()
     
     if missing_deps:
-        st.warning("Missing dependencies:")
+        st.warning("⚠️ Missing dependencies:")
         for dep in missing_deps:
             st.warning(f"- {dep}")
         
         st.info("""
-        Install missing dependencies:
+        📦 Install missing dependencies:
         - Tesseract OCR: `apt-get install tesseract-ocr`
         - Ghostscript: `apt-get install ghostscript`
         - Unpaper: `apt-get install unpaper`
         - pngquant: `apt-get install pngquant`
         """)
     
-    # File uploader for ZIP
-    uploaded_file = st.file_uploader(
-        "Choose a ZIP file",
-        type=['zip']
+    # Sidebar for configuration
+    st.sidebar.header("🛠️ Conversion Settings")
+    
+    # Language selection
+    language = st.sidebar.selectbox(
+        "OCR Language", 
+        ["eng", "fra", "deu", "spa", "chi_sim", "rus"],
+        help="Choose the language for text recognition"
     )
     
+    # Optimization level
+    optimize = st.sidebar.selectbox(
+        "PDF Optimization Level",
+        [0, 1, 2, 3],
+        index=2,
+        help="Higher levels compress PDF more but may reduce quality"
+    )
+    
+    # File uploader
+    uploaded_file = st.file_uploader(
+        "Upload ZIP File", 
+        type=['zip'], 
+        help="Upload a ZIP file containing images to convert"
+    )
+    
+    # Conversion process
     if uploaded_file:
-        st.write(f"Uploaded: {uploaded_file.name}")
+        # Display uploaded file info
+        st.markdown(f"📁 **Uploaded File:** `{uploaded_file.name}`")
         
-        # Options for OCR
-        language = st.selectbox(
-            "Select OCR Language", 
-            ["eng", "fra", "deu", "spa", "chi_sim", "rus"],
-            help="Choose the language for OCR text recognition"
-        )
-        
-        optimize = st.selectbox(
-            "PDF Optimization Level",
-            [0, 1, 2, 3],
-            index=2,
-            help="Higher levels compress PDF more but may reduce quality"
-        )
-        
-        if st.button("Convert to Searchable PDF"):
-            with st.spinner("Converting images to searchable PDF..."):
-                # Call with selected language and optimization
+        # Conversion button
+        if st.button("🔄 Convert to Searchable PDF", type="primary"):
+            with st.spinner("🕒 Converting images to searchable PDF..."):
+                # Process the ZIP file
                 pdf_bytes = process_zip_to_searchable_pdf(
                     uploaded_file, 
                     language=language, 
                     optimize=optimize
                 )
                 
+                # Display download button if conversion successful
                 if pdf_bytes:
-                    st.success("Conversion completed!")
+                    st.success("✅ Conversion Completed Successfully!")
                     st.download_button(
-                        label="Download Searchable PDF",
+                        label="📥 Download Searchable PDF",
                         data=pdf_bytes,
                         file_name="searchable_images.pdf",
                         mime="application/pdf"
                     )
-        
-        st.info("""
-        📝 Notes:
-        - Supported image formats: JPG, JPEG, PNG, GIF, TIFF, BMP
-        - Images will be ordered alphabetically by filename
-        - OCR will attempt to recognize text in the images
-        - Requires OCRmyPDF and Tesseract OCR to be installed
-        """)
+    
+    # Information section
+    st.markdown("---")
+    st.markdown("### 📝 Notes")
+    st.markdown("""
+    - Supported image formats: JPG, JPEG, PNG, GIF, TIFF, BMP
+    - Images will be ordered alphabetically by filename
+    - OCR will attempt to recognize text in the images
+    - Requires OCRmyPDF and Tesseract OCR to be installed
+    """)
 
 if __name__ == "__main__":
     main()
