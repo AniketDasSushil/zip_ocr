@@ -1,11 +1,24 @@
 import streamlit as st
-from PIL import Image
+from PIL import Image, ImageFilter
 import io
 import zipfile
 import tempfile
 import os
 import pytesseract
 from fpdf import FPDF
+
+def preprocess_image(image):
+    """Preprocess the image for better OCR results."""
+    # Convert to grayscale
+    image = image.convert("L")
+    
+    # Apply thresholding
+    image = image.point(lambda x: 0 if x < 128 else 255, '1')
+    
+    # Resize image to improve OCR accuracy (optional)
+    image = image.resize((image.width * 2, image.height * 2), Image.LANCZOS)
+    
+    return image
 
 def process_zip_to_searchable_pdf(zip_file):
     """Convert images from zip file to a searchable PDF using OCR."""
@@ -38,24 +51,27 @@ def process_zip_to_searchable_pdf(zip_file):
             # Create a PDF using fpdf2
             pdf = FPDF()
             pdf.set_auto_page_break(auto=True, margin=15)
-            pdf.add_page()
 
             for img in images:
+                # Preprocess the image for better OCR
+                processed_img = preprocess_image(img)
+
                 # Convert the PIL image to a temporary file
                 with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as temp_file:
-                    img.save(temp_file.name, "JPEG")
+                    processed_img.save(temp_file.name, "JPEG")
                     
                     # Add image to the PDF
+                    pdf.add_page()
                     pdf.image(temp_file.name, x=0, y=0, w=pdf.w, h=pdf.h)
 
                     # Use pytesseract to extract text for OCR
-                    text = pytesseract.image_to_string(img)
+                    text = pytesseract.image_to_string(processed_img, config='--psm 6')  # Set Page Segmentation Mode
 
                     # Insert the text into the PDF as a hidden text layer
                     pdf.set_xy(0, 0)  # Position for text
                     pdf.set_font("Arial", size=12)
 
-                    # This allows using Unicode characters
+                    # Handle potential unsupported characters
                     pdf.multi_cell(0, 10, text.encode('latin-1', 'replace').decode('latin-1'))
 
             # Save the PDF to a BytesIO stream
