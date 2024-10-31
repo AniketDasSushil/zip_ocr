@@ -4,3 +4,5 @@ ocrmypdf
 ghostscript
 tesseract
 pytesseract
+fpdf
+img2pdf
