@@ -2,3 +2,5 @@
 Pillow
 ocrmypdf
 ghostscript
+tesseract
+pytesseract
