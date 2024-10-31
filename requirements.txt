@@ -7,3 +7,4 @@ pytesseract
 fpdf
 img2pdf
 pdf2image
+fpdf2
