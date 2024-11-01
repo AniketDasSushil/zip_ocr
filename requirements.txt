@@ -8,3 +8,10 @@ fpdf
 img2pdf
 pdf2image
 fpdf2
+streamlit
+Pillow
+pytesseract
+pdf2image
+fpdf
+opencv-python
+numpy
